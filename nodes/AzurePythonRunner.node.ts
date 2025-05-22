@@ -1,6 +1,11 @@
 import axios from 'axios';
-import { IExecuteFunctions } from 'n8n-core';
-import { INodeType, INodeTypeDescription, IDataObject } from 'n8n-workflow';
+import {
+    IExecuteFunctions,
+    INodeType,
+    INodeTypeDescription,
+    IDataObject,
+    INodeExecutionData,
+} from 'n8n-workflow';
 
 export class AzurePythonRunner implements INodeType {
     description: INodeTypeDescription = {
@@ -37,7 +42,7 @@ export class AzurePythonRunner implements INodeType {
 
     async execute(this: IExecuteFunctions) {
         const items = this.getInputData();
-        const returnData = [] as IDataObject[];
+        const returnData = [] as INodeExecutionData[];
 
         for (let i = 0; i < items.length; i++) {
             const pythonFileUrl = this.getNodeParameter('pythonFileUrl', i) as string;
@@ -50,10 +55,6 @@ export class AzurePythonRunner implements INodeType {
             returnData.push({ json: response.data });
         }
 
-        return [
-            {
-                json: returnData,
-            },
-        ];
+        return [returnData];
     }
 }
