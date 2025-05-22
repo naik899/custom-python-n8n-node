@@ -1,0 +1,15 @@
+{
+  "name": "n8n-custom-nodes",
+  "version": "1.0.0",
+  "description": "Custom n8n nodes with Python support",
+  "scripts": {
+    "build": "npx tsc"
+  },
+  "dependencies": {
+    "duckdb": "^0.10.0",
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0",
+    "n8n-workflow": "^1.48.0",
+    "n8n-core": "^1.48.0"
+  }
+}
