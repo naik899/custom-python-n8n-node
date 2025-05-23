@@ -47,43 +47,64 @@ export class AzurePythonRunner implements INodeType {
         outputs: ['main'],
         properties: [
             {
-                displayName: 'Python File URL',
-                name: 'pythonFileUrl',
+                displayName: 'Bearer Token',
+                name: 'bearerToken',
                 type: 'string',
                 default: '',
-                placeholder: 'https://example.com/script.py',
-                description: 'Public URL to the Python script',
+                placeholder: '',
+                description: 'Token to the Python script',
             },
-            // The Azure session endpoint is provided via the AZURE_SESSION_URL environment variable
+            {
+                displayName: 'sessionUrl',
+                name: 'sessionUrl',
+                type: 'string',
+                default: '',
+                placeholder: '',
+                description: '  Python script',
+            },
         ],
     };
+
+    generateSessionId(prefix: string = 'sess'): string {
+        const timestamp = Date.now().toString(36); // base36 timestamp for compactness
+        const randomPart = Math.random().toString(36).substring(2, 10); // random alphanumeric
+        return `${prefix}-${timestamp}-${randomPart}`;
+    }
 
     async execute(this: IExecuteFunctions) {
         const items = this.getInputData();
         const returnData = [] as INodeExecutionData[];
-
-        const sessionUrl = process.env.AZURE_SESSION_URL;
+        const sessionUrl = this.getNodeParameter('sessionUrl', 1) as string;
         if (!sessionUrl) {
             throw new Error('AZURE_SESSION_URL environment variable must be set');
         }
 
-        const token = await getAzureAccessToken();
+        const token = this.getNodeParameter('bearerToken', 0) as string;
+    
+        const pythonScript = `import requests\nimport pandas as pd\nfrom io import StringIO\nimport json\n\ndef fetch_time_series_data():\n    """\n    Fetch time series data from a public source and return it as JSON.\n    """\n    url = "https://datahub.io/core/global-temp/r/monthly.csv"  # Public source for global temperature data\n\n    try:\n        response = requests.get(url)\n        response.raise_for_status()  # Raise an error for bad status codes\n\n        # Convert the CSV data to a pandas DataFrame\n        data = pd.read_csv(StringIO(response.text))\n        return data.to_json(orient='records')  # Return the data as JSON\n\n    except requests.exceptions.RequestException as e:\n        raise Exception(f"Error fetching data: {e}")\n\nfetch_time_series_data()`;
+        console.log('Python Script:', pythonScript);
+        const sessionId = AzurePythonRunner.prototype.generateSessionId();
+        const sessionUrlWithId = `${sessionUrl}&identifier=${sessionId}`;
 
-        for (let i = 0; i < items.length; i++) {
-            const pythonFileUrl = this.getNodeParameter('pythonFileUrl', i) as string;
+        try {
+            const payload = {
+                code: pythonScript,
+                codeInputType: 'Inline',
+                executionType: 'Synchronous',
+                timeoutInSeconds: 240,
+            };
 
-            const fileResponse = await axios.get<string>(pythonFileUrl);
-            const code = fileResponse.data;
-
-            const response = await axios.post(sessionUrl, { code }, {
+            const response = await axios.post(sessionUrlWithId, payload, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
             });
 
             returnData.push({ json: response.data });
+            return [returnData];
+        } catch (error) {
+            console.error('Error executing Python script:', error);
+            return [[{ json: { error: error instanceof Error ? error.message : String(error) } }]];
         }
-
-        return [returnData];
     }
 }

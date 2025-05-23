@@ -1,5 +1,6 @@
 import requests
 import pandas as pd
+from io import StringIO
 import json
 
 def fetch_time_series_data():
@@ -13,14 +14,11 @@ def fetch_time_series_data():
         response.raise_for_status()  # Raise an error for bad status codes
 
         # Convert the CSV data to a pandas DataFrame
-        data = pd.read_csv(pd.compat.StringIO(response.text))
+        data = pd.read_csv(StringIO(response.text))
         return data.to_json(orient='records')  # Return the data as JSON
 
     except requests.exceptions.RequestException as e:
-        print(f"Error fetching data: {e}")
-        return None
+        raise Exception(f"Error fetching data: {e}")
 
-if __name__ == "__main__":
-    data = fetch_time_series_data()
-    if data is not None:
-        exit(data)  # Return the JSON data as the script's output
+# Directly call the function and return the result
+fetch_time_series_data()
